@@ -16,6 +16,7 @@ from urllib.parse import urljoin, urlparse
 from datetime import datetime
 from fpdf import FPDF  # Explicitly use fpdf2
 from io import BytesIO
+from ai_report_generator import generate_ai_summary
 
 # Configure logging
 logging.basicConfig(
@@ -34,6 +35,7 @@ class CyberScanner:
             'Accept': 'text/html,application/xhtml+xml'
         }
         self.start_time = datetime.now()
+        self.ai_summary = None  # NEW: to hold the AI executive summary
         
         # Enhanced security rules (unchanged from original)
         self.rules = {
@@ -175,6 +177,30 @@ class CyberScanner:
             pdf.set_font("Arial", 'I', 10)
             pdf.cell(0, 10, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 1, 'C')
             pdf.ln(10)
+
+            # NEW: AI Executive Summary
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, "AI Executive Summary", 0, 1)
+            pdf.set_font("Arial", '', 12)
+            if self.findings:
+                self.ai_summary = generate_ai_summary(list(self.findings.values()))
+            else:
+                self.ai_summary = """
+ No critical vulnerabilities were found in this scan. The system appears secure at this time.
+
+**Business perspective:**  
+- Continue proactive security measures to reduce emerging risks.  
+- Schedule regular vulnerability scans and staff training.  
+- Review third-party dependencies and access controls.
+
+Maintaining vigilance is key to staying protected.
+"""
+
+            if self.ai_summary:
+                pdf.multi_cell(0, 6, self.ai_summary)
+            else:
+                pdf.multi_cell(0, 6, "No AI summary available.")
+            pdf.ln(10)
             
             # Scan Summary
             pdf.set_font("Arial", 'B', 14)
@@ -272,7 +298,8 @@ class CyberScanner:
                         "findings": len(self.findings)
                     }
                 },
-                "results": list(self.findings.values())
+                "results": list(self.findings.values()),
+                "ai.summary": self.ai_summary #include AI in memory
             }, indent=2),
             "html": self._generate_html_report()
         }
@@ -313,12 +340,15 @@ class CyberScanner:
     def get_logs(self):
         """Get all logged messages"""
         return "\n".join(self.logs)
+    
+    
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         try:
             scanner = CyberScanner()
             scanner.crawl(sys.argv[1])
+            scanner.generate_ai_summary()    # NEW: get AI executive summary
             reports = scanner.generate_reports()
             if reports["pdf"]:
                 with open("report.pdf", "wb") as f:

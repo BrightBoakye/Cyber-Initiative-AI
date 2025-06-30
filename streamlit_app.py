@@ -2,6 +2,8 @@
 import streamlit as st
 from cyber_initiative_update import CyberScanner
 from datetime import datetime
+from ai_report_generator import generate_ai_summary
+
 
 # Configure page
 st.set_page_config(
@@ -80,14 +82,26 @@ def main():
         )
         st.markdown("---")
         st.markdown("**Note:** This is a demo scanner. Real-world scanning requires proper authorization.")
-
+    
     if scan_button:
         with st.spinner(f"Scanning {target_url} (depth: {max_depth})..."):
             scanner = CyberScanner()
-            
-            # Run scan
             scanner.crawl(target_url, max_depth=max_depth)
+
+            # Convert findings to text summary
+            scan_summary_text = "\n".join(
+                f"[{f['severity']}] {f['vulnerability']} at {f['url']}: {f['advice']}"
+                for f in scanner.findings.values()
+            )
             
+            # Call AI to generate executive summary
+            ai_summary = generate_ai_summary(scan_summary_text) if scan_summary_text else \
+                "✅ No critical vulnerabilities were found. The system appears secure at this time. Continue regular monitoring and testing."
+            
+            # Display in UI
+            st.subheader("🧠 AI-Powered Executive Summary", divider="blue")
+            st.markdown(ai_summary)
+
             # Display results
             st.success(f"✅ Scan completed in {(datetime.now() - scanner.start_time).total_seconds():.2f} seconds")
             
@@ -152,6 +166,7 @@ def main():
                     mime="text/html",
                     use_container_width=True
                 )
+
 
 if __name__ == "__main__":
     main()
